@@ -9,11 +9,15 @@ from scipy.io import loadmat
 from scipy.stats import skew, kurtosis
 from tensorflow.keras.models import load_model
 import pandas as pd
+from pathlib import Path
 
+
+BASE_DIR = Path(__file__).resolve().parent
+MODEL_DIR = BASE_DIR / "models"
 # -------------------------
 # CONFIG
 # -------------------------
-BASE_DATASET_PATH = r"D:\digitransol\HUST dataset"
+BASE_DATASET_PATH = BASE_DIR / "datasets"
 fs = 51200
 window_size = 2048
 overlap = 1024
@@ -25,16 +29,17 @@ label_map = {0: "B", 1: "I", 2: "O", 3: "IB", 4: "IO", 5: "OB", 6: "N"}
 # LOAD MODELS
 # -------------------------
 models = {
-    "Random Forest": joblib.load("random_forest_model.pkl"),
-    "SVM": joblib.load("svm_model.pkl"),
-    "KNN": joblib.load("knn_model.pkl"),
+    "Random Forest": joblib.load(MODEL_DIR / "random_forest_model.pkl"),
+    "SVM": joblib.load(MODEL_DIR / "svm_model.pkl"),
+    "KNN": joblib.load(MODEL_DIR / "knn_model.pkl"),
 }
-nn_model = load_model("tf_nn_model.keras")
+
+nn_model = load_model(MODEL_DIR / "tf_nn_model.keras")
 
 scalers = {
-    "SVM": joblib.load("svm_scaler.pkl"),
-    "KNN": joblib.load("knn_scaler.pkl"),
-    "NN": joblib.load("tf_scaler.pkl"),
+    "SVM": joblib.load(MODEL_DIR / "svm_scaler.pkl"),
+    "KNN": joblib.load(MODEL_DIR / "knn_scaler.pkl"),
+    "NN": joblib.load(MODEL_DIR / "tf_scaler.pkl"),
 }
 
 # -------------------------
@@ -170,17 +175,20 @@ if file:
                 signal = mat[key].flatten()
                 break
 
-        filename = file.name
-        number = "".join(filter(str.isdigit, filename))
-        normal_path = os.path.join(BASE_DATASET_PATH, "N", f"N{number}.mat")
-
+        # Optional normal signal
         normal_signal = None
-        if os.path.exists(normal_path):
-            mat_n = loadmat(normal_path)
-            for key in mat_n:
-                if not key.startswith("__"):
-                    normal_signal = mat_n[key].flatten()
-                    break
+
+        if BASE_DATASET_PATH.exists():
+            filename = file.name
+            number = "".join(filter(str.isdigit, filename))
+            normal_path = BASE_DATASET_PATH / "N" / f"N{number}.mat"
+
+            if normal_path.exists():
+                mat_n = loadmat(normal_path)
+                for key in mat_n:
+                    if not key.startswith("__"):
+                        normal_signal = mat_n[key].flatten()
+                        break
 
         segments = segment_signal(signal)
         features = np.array([extract_features(s) for s in segments])
